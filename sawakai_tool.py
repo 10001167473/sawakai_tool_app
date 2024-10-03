@@ -80,7 +80,7 @@ def add_risk_movie_free_comment(movie_path,thumbnail_path,prs,base_dir,r):
                                     left=left,top=top,
                                     width=width,height=height)
     rect_callout_shape.fill.solid()
-    rect_callout_shape.fill.fore_color.rgb = RGBColor(112, 192, 188)
+    rect_callout_shape.fill.fore_color.rgb = RGBColor(25, 122, 117)
 
     rect_callout_shape.text = f"{comment}"
     rect_callout_shape.text_frame.paragraphs[0].font.size = Pt(24)
@@ -204,7 +204,10 @@ def add_group_risk_graph(graph_path,prs,title,doramiru_img_folder):
                                     left=left,top=top,
                                     width=width,height=height)
     rect_callout_shape.fill.solid()
-    rect_callout_shape.fill.fore_color.rgb = RGBColor(112, 192, 188)
+    
+    #rect_callout_shape.fill.fore_color.rgb = RGBColor(112, 192, 188)
+    #R:25 G:122 B:117
+    rect_callout_shape.fill.fore_color.rgb = RGBColor(25, 122, 117)
     rect_callout_shape.adjustments[0] = 0.60278
     rect_callout_shape.adjustments[1] = -0.23541
     rect_callout_shape.adjustments[2] = 0.16667
@@ -290,7 +293,7 @@ def make_map_image(r,base_dir,prs,vmin,vmax):
                                     left=left,top=top,
                                     width=width,height=height)
     rect_callout_shape.fill.solid()
-    rect_callout_shape.fill.fore_color.rgb = RGBColor(112, 192, 188)
+    rect_callout_shape.fill.fore_color.rgb = RGBColor(25, 122, 117)
 
     str_date = datetime.strptime(r['STARTED_AT_JST'],'%Y-%m-%d %H:%M:%S').strftime('%#m月%#d日%#H時%#M分')
     rect_callout_shape.text = f"{str_date}に{risk_name}を見つけたよ。\n自宅から{home_distance_category}の場所で、今まで{passes}回目だね。"
