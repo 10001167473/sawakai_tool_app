@@ -1,0 +1,28 @@
+with tmp as
+(
+    select 
+    ticket_id,
+    time_second,
+    mm_latitude,
+    mm_longitude,
+    speed,
+    lead(mm_latitude) over (partition by ticket_id order by time_second) as lead_mm_lat,
+    lead(mm_longitude) over (partition by ticket_id order by time_second) as lead_mm_lon,
+    DEGREES(ST_AZIMUTH(st_makepoint(mm_longitude,mm_latitude),st_makepoint(lead_mm_lon,lead_mm_lat))) as mm_angle,
+    st_makepoint(mm_longitude,mm_latitude),
+    st_makepoint(lead_mm_lon,lead_mm_lat)
+    from DCLOUD_RDS_DATA."tmf".ai_timeline
+    where ticket_id = '[TICKET_ID]'
+    and time_second between timestampadd('second',-10,'[STARTED_AT]') and timestampadd('second',10,'[ENDED_AT]')
+    and mm_latitude != -99
+)
+select
+    ticket_id,
+    time_second,
+    mm_latitude,
+    mm_longitude,
+    speed,
+case when mm_angle < 0 then 360 + mm_angle
+     else mm_angle end as mm_angle
+from tmp
+order by time_second;

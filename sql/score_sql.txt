@@ -1,0 +1,18 @@
+with tmp as 
+(
+    select
+    analysis_number as "解析回",
+    score as "点数",
+    case when age <=74 then '74歳以下'
+         when age >=75 then '75歳以上'
+    end as "年齢グループ"
+    from dcloud_rds_data."tmf".latest_tickets
+    where analysis_group = [GROUP_NUMBER]
+)
+select
+"解析回",
+"年齢グループ",
+ROUND(avg("点数"),1) as "平均点",
+count("点数") as "参加人数"
+from tmp
+group by "解析回","年齢グループ"

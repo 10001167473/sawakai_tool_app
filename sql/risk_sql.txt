@@ -1,0 +1,44 @@
+select
+a.ai_user_id as "ユーザーID",
+a.analysis_number as "解析回",
+a.ai_ticket_id,
+date(c.time_second) as "日付",
+d.group_name,
+b.full_name as "氏名",
+a.risk_name as "リスク名",
+a.id as "リスクID",
+concat('https://doramiru.info/tmf/admin/risk_check/',a.ai_ticket_id,'?riskEventId=',a.id) as "ビデオリンク", 
+concat('https://www.google.com/maps/search/?api=1&query=',c.latitude,',',c.longitude) as "GOOGLE MAP リンク",
+mm_link_id as "場所ID",
+"コメント",
+null as "動画表示の優先度",
+count(case when a.analysis_number = 1 then a.id else null end) over (PARTITION BY a.ai_user_id,a.risk_name,mm_link_id) as "１回目_同地点リスク検知数",
+count(case when a.analysis_number = 2 then a.id else null end) over (PARTITION BY a.ai_user_id,a.risk_name,mm_link_id) as "２回目_同地点リスク検知数",
+count(case when a.analysis_number = 3 then a.id else null end) over (PARTITION BY a.ai_user_id,a.risk_name,mm_link_id) as "３回目_同地点リスク検知数",
+count(case when a.analysis_number = 4 then a.id else null end) over (PARTITION BY a.ai_user_id,a.risk_name,mm_link_id) as "４回目_同地点リスク検知数",
+count(a.id) over (PARTITION BY a.ai_user_id,a.risk_name,mm_link_id) as "同地点でのユーザ別リスク検知数",
+count(distinct a.ai_user_id) over (PARTITION BY a.risk_name,mm_link_id) as "同一地点でのリスク検知ユーザ数",
+merged_movie_path,
+merged_thumbnail_path,
+rank() over (PARTITION BY a.ai_user_id,a.risk_name,analysis_number order by home_distance) as "自宅からの距離の近い順",
+c.home_distance/1000 as "自宅からの距離[km]",
+case when c.home_distance <= 500 then '500m以内'
+     when c.home_distance <= 1000 then '1km以内'
+     when c.home_distance <= 5000 then '5km以内'
+     else  '5km以上'
+end "自宅からの距離のカテゴリ",
+mm_latitude,
+mm_longitude,
+started_at_jst,
+ended_at_jst
+from DCLOUD_RDS_DATA."tmf".RISK_EVENT_WITH_VISUAL_INSPECTION_G2 a
+left join DCLOUD_RDS_DATA."tmf".diagui_users b
+on a.ai_user_id = b.user_id
+left join DCLOUD_RDS_DATA."tmf".ai_timeline c
+on a.ended_at_jst = c.time_second
+and a.ai_ticket_id = c.ticket_id
+left join DCLOUD_RDS_DATA."tmf_additional".TOYOTA_GR3_GROUPLIST d
+on a.ai_user_id = d.id
+where a.analysis_group = [GROUP_ID]
+and a.visible_status = 0
+order by a.analysis_number,a.ai_user_id;
