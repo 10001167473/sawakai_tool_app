@@ -14,6 +14,10 @@ import subprocess
 from datetime import datetime
 import matplotlib.patheffects as patheffects
 from matplotlib.ticker import MaxNLocator
+from snowflake.connector.pandas_tools import write_pandas
+from chardet import detect
+
+
 
 SNOWFLAKE_USER = os.environ['SNOWFLAKE_USER'] #snowflakeのユーザID
 SNOWFLAKE_PASSWORD = os.environ['SNOWFLAKE_PASSWORD'] #snowflakeのパスワード
@@ -39,6 +43,68 @@ def send_sql_to_snowflake(sqls):
     
     #return all_row
     return df
+
+def upload_snowflake_database(database,schema,table,df):
+    # Snowflakeへの接続
+    conn = snowflake.connector.connect(
+        user=os.environ['SNOWFLAKE_USER'],
+        password=os.environ['SNOWFLAKE_PASSWORD'],
+        account=os.environ['SNOWFLAKE_ACCOUNT'],
+        database=database,
+        schema=schema
+    )
+
+    # TABLEへのDataFrameの書き込み
+    success, nchunks, nrows, output = write_pandas(
+        conn=conn,
+        df=df,
+        table_name=table
+    )
+
+def upload_verification_result(files):
+    database = 'DCLOUD_RDS_DATA'
+    schema = '"tmf_additional"'
+    table = 'visual_inspection_with_comment'
+
+    sql = """
+        create or replace table [DATABASE].[SCHEMA].[TABLE] as
+        select distinct *
+        from [DATABASE].[SCHEMA].[TABLE];
+    """
+
+    columns = ['検知ID','種別','検知項目','検知時間','検知場所','動画有無','表示設定','判断基準','コメント','茶話会優先度','茶話会コメント','作成日時']
+
+    for csvfile in files:
+        with open(csvfile, 'rb') as f:  # バイナリファイルとしてファイルをオープン
+            b = f.read()  # ファイルの内容を全て読み込む
+            enc = detect(b)['encoding']
+        #if(enc != 'SHIFT_JIS'):
+        print(csvfile,enc)
+        if enc == 'windows-1253':
+            enc = 'SHIFT_JIS'
+        #ファイルをデータフレームに変換
+        df = pd.read_csv(csvfile,encoding=enc)
+        max_column = len(df.columns)
+        if max_column == 9:
+            df = df[df.columns.to_list()[0:9]] ##茶話会更新用にしている
+            df['茶話会優先度'] = None
+            df['茶話会コメント'] = None
+        else:
+            df = df[df.columns.to_list()[0:11]]
+        updated_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        df['作成日時'] = updated_time
+        df.columns = columns
+        print(df.columns)
+        df['解析回']=csvfile.split('_')[-4]
+        fname = csvfile.split('\\')[-1].replace('.csv','')
+        df = df.reset_index().drop(columns='index')
+        if not os.path.exists('verify_result'):
+            os.mkdir('verify_result')
+        #snowflakeのデータベースにアップロード
+        upload_snowflake_database(database=database,schema=schema,table=table,df=df)
+
+    #distinct_sql = sql.replace('[DATABASE]',database).replace('[SCHEMA]',schema).replace('[TABLE]',f'"{table}"')
+    #send_sql_to_snowflake(distinct_sql) #重複しているデータを削除する
 
 def add_risk_movie(movie_path,thumbnail_path,slide):
     ##動画を追加

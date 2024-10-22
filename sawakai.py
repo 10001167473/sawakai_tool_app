@@ -7,25 +7,38 @@ from glob import glob
 import datetime
 import os
 import zipfile
+import wget
+import io
+import base64
+from chardet import detect
+from glob import glob
+
+st.set_page_config(
+    layout="wide"  # wideに設定することで表示幅を広げる
+)
 
 group_id=''
 group_df = pd.read_csv("./database/group_id.csv")
 
-group_name = st.selectbox(
+group_name = st.sidebar.selectbox(
     'グループ名を選択してください',
     group_df['NAME'].to_list(),
 )
 group_id = group_df[group_df['NAME']==group_name]['ID'].to_list()[0]
-st.write('グループ名は', group_name, 'です。')
-st.write('グループIDは', group_id, 'です。')
+st.sidebar.write('グループ名は', group_name, 'です。')
+st.sidebar.write('グループIDは', group_id, 'です。')
 
-analysis_numbers = st.multiselect(
+analysis_numbers = st.sidebar.multiselect(
     '解析回を選んでください',
     [1,2,3,4,5],)
 
 folder = './outputs/documents/*'
 files = glob(folder)
 datalist = []
+
+if st.sidebar.button('茶話会パワポの生成と更新'):
+    for analysis_number in analysis_numbers:
+        stool.make_sawakai_pdf(group_name,analysis_number,group_id)
 
 for f in files:
     #group_name = f.split('\\')[-1].split('_')[-3]
@@ -37,14 +50,10 @@ for f in files:
 pptx_df = pd.DataFrame(data=datalist,columns=['ファイル名','更新日時'])
 st.dataframe(pptx_df)
 
-if st.button('パワーポイントファイルを生成と更新'):
-    for analysis_number in analysis_numbers:
-        stool.make_sawakai_pdf(group_name,analysis_number,group_id)
-
 choices = st.multiselect('ダウンロードするファイルを選んでください',pptx_df['ファイル名'].to_list())
 
 ##パワーポイントファイルのダウンロード
-if st.button('ファイルをZIPファイルにします'):
+if st.button('選択したファイルをZIPファイルにします'):
     if not os.path.exists(f'./outputs/zip'):
         os.mkdir(f'./outputs/zip')
     # ZIPファイルを作成
@@ -59,13 +68,18 @@ if st.button('ファイルをZIPファイルにします'):
             file_name="sawakai_tools.zip",
             mime="application/zip"
         )
-    #prs = Presentation("./outputs/documents/井上友睦会_4回目.pptx")
-    #bio = BytesIO()
-    #prs.save(bio)
-    #pptx_bio = bio
-    #pptx_bio.seek(0)
-    #st.download_button(label='ダウンロード', 
-    #                       data=pptx_bio, 
-    #                       file_name='井上友睦会_4回目.pptx', 
-    #                       mime='application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    #                       )
+
+st.sidebar.divider()
+##フォルダを指定
+def folder_selector(folder_path='./verify_result/'):
+    foldernames = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
+    selected_folder = st.sidebar.selectbox('目検結果のあるフォルダを選択', foldernames)
+    return os.path.join(folder_path, selected_folder)
+
+selected_folder = folder_selector()
+st.sidebar.write('You selected `%s`' % selected_folder)
+
+if st.sidebar.button('目検結果をアップロードします'):
+    csvfiles = glob(f'{selected_folder}/*.csv')
+    stool.upload_verification_result(csvfiles)
+        
