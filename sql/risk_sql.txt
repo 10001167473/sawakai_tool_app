@@ -41,4 +41,5 @@ left join DCLOUD_RDS_DATA."tmf_additional".TOYOTA_GR3_GROUPLIST d
 on a.ai_user_id = d.id
 where a.analysis_group = [GROUP_ID]
 and a.visible_status = 0
-order by a.analysis_number,a.ai_user_id;
+//[USER_LIST]
+order by a.analysis_number,a.ai_user_id,a.id;

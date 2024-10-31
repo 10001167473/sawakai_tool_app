@@ -124,9 +124,20 @@ def add_risk_movie_free_comment(movie_path,thumbnail_path,prs,base_dir,r):
     risk_id = r['リスクID']
     risk_name = r['リスク名']
 
+    # インデックスに茶話会優先度が存在するかどうかをチェック
+    if '茶話会優先度' in r.index:
+        priority = r['茶話会優先度']
+    else:
+        priority = 1
+
     slide_layout = prs.slide_layouts[1]#動画1のレイアウト
     new_slide = prs.slides.add_slide(slide_layout)
-    new_slide.placeholders[0].text = f"{name}さん_{risk_name}動画_NO:{risk_id}" 
+
+    good_scene_name = convert_good_scene_name(risk_name=risk_name)
+    if priority == 0:
+        new_slide.placeholders[0].text = f"{name}さん_{good_scene_name}動画_NO:{risk_id}" 
+    else:
+        new_slide.placeholders[0].text = f"{name}さん_{risk_name}動画_NO:{risk_id}" 
 
     ##動画を追加
     movie_left_cm = Cm(0)
@@ -157,7 +168,17 @@ def add_risk_movie_free_comment(movie_path,thumbnail_path,prs,base_dir,r):
     top = Cm(12.07)
     width = Cm(3.73)
     height = Cm(6.98)
-    new_slide.shapes.add_picture(f'{base_dir}/doramiru_img/worry_doramiru.png',left=left,top=top,width=width,height=height)
+
+
+
+    if priority == 0:
+        doramiru_img = 'happy_doramiru.png'
+    elif priority == 1:
+        doramiru_img = 'worry_doramiru.png'
+    elif priority == 2:
+        doramiru_img = 'little_bad_doramiru.png'
+
+    new_slide.shapes.add_picture(f'{base_dir}/doramiru_img/{doramiru_img}',left=left,top=top,width=width,height=height)
     
 def add_map_link(google_map_link,slide):
     # テキストボックスの追加
@@ -279,7 +300,7 @@ def add_group_risk_graph(graph_path,prs,title,doramiru_img_folder):
     rect_callout_shape.adjustments[2] = 0.16667
     rect_callout_shape.text = "今回の結果をみて、気づいたことがあったら教えてね！"
     rect_callout_shape.text_frame.paragraphs[0].font.size = Pt(28)
-    # ドラ見るちゃんを置く
+    # ドラみるちゃんを置く
     left = Cm(28.3)
     top = Cm(8.42)
     width = Cm(4.68)
@@ -296,6 +317,33 @@ def custom_color_line(locs,colors,vmin,vmax,nb_steps,weight,map):
         out.setdefault(cm(color), []).append([[lat1, lng1], [lat2, lng2]])
     for key, val in out.items():
         folium.PolyLine(val, color=key, weight=weight).add_to(map)
+
+def convert_good_scene_name(risk_name):
+    if risk_name == '一時不停止':
+        good_scene_name = '一時停止'
+    elif risk_name == '踏切不停止':
+        good_scene_name = '踏切の停止'
+    elif risk_name == '巻き込み確認不足':
+        good_scene_name = '巻き込み確認'
+    elif risk_name == '左右の安全確認不足':
+        good_scene_name = '左右の安全確認'
+    elif risk_name == 'スピード違反':
+        good_scene_name = '安全な速度維持'
+    elif risk_name == '脇見':
+        good_scene_name = '前方の注視'
+    elif risk_name == '車間距離不保持':
+        good_scene_name = '車間距離'
+    elif risk_name == '信号無視':
+        good_scene_name = '信号の順守'
+    elif risk_name == '急ブレーキ':
+        good_scene_name = '適切なブレーキ操作'
+    elif risk_name == '急加速':
+        good_scene_name = '適切な加速操作'
+    elif risk_name == '急ハンドル':
+        good_scene_name = '適切なハンドル操作'
+    else:
+        good_scene_name = ''
+    return good_scene_name
 
 def make_map_image(r,base_dir,prs,vmin,vmax):
     
@@ -335,13 +383,25 @@ def make_map_image(r,base_dir,prs,vmin,vmax):
         folium.Marker([locs[-1][0], locs[-1][1]], icon=icon,tooltip=str(angle)).add_to(map)
         map.save(f'{base_dir}/outputs/map/tmp_map.html')
         proxy = os.environ['HTTP_PROXY']
+        ##プロキシの設定を入れないと、表示されない
         cmd = f'''"C:\Program Files\Google\Chrome\Application\chrome.exe" --proxy-server={proxy} --headless --disable-gpu --virtual-time-budget=1000 --screenshot={base_dir}/outputs/map/{risk_id}.png --window-size=1280,720 {base_dir}/outputs/map/tmp_map.html'''
         print(subprocess.run(cmd))
 
+    # インデックスに茶話会優先度が存在するかどうかをチェック
+    if '茶話会優先度' in r.index:
+        priority = r['茶話会優先度']
+    else:
+        priority = 1
+
+    good_scene_name = convert_good_scene_name(risk_name=risk_name)
     # リスク毎に新しいスライドを追加
     slide_layout = prs.slide_layouts[1]#動画1のレイアウト
     new_slide = prs.slides.add_slide(slide_layout)
-    new_slide.placeholders[0].text = f"{name}さん_{risk_name}の場所_NO:{risk_id}" 
+    
+    if priority == 0:
+        new_slide.placeholders[0].text = f"{name}さん_{good_scene_name}の場所_NO:{risk_id}"
+    else:
+        new_slide.placeholders[0].text = f"{name}さん_{risk_name}の場所_NO:{risk_id}" 
 
     # グラフのスライドを加工する
     left = Cm(3.19)
@@ -361,18 +421,35 @@ def make_map_image(r,base_dir,prs,vmin,vmax):
     rect_callout_shape.fill.solid()
     rect_callout_shape.fill.fore_color.rgb = RGBColor(25, 122, 117)
 
+
+
+    # コメントを追加
     str_date = datetime.strptime(r['STARTED_AT_JST'],'%Y-%m-%d %H:%M:%S').strftime('%#m月%#d日%#H時%#M分')
-    rect_callout_shape.text = f"{str_date}に{risk_name}を見つけたよ。\n自宅から{home_distance_category}の場所で、今まで{passes}回目だね。"
-    rect_callout_shape.text_frame.paragraphs[0].font.size = Pt(24)
-    rect_callout_shape.text_frame.paragraphs[1].font.size = Pt(24)
+    if priority == 0: #褒める動画
+        map_comment = f"{str_date}で{good_scene_name}がちゃんとできてるシーンを見つけたよ！すごい！"
+    elif priority == 1:
+        map_comment = f"{str_date}に{risk_name}を見つけたよ。\n自宅から{home_distance_category}の場所で、今まで{passes}回目だね。"
+    elif priority == 2:
+        map_comment = f"{str_date}に{risk_name}を見つけたよ。\n自宅から{home_distance_category}の場所で、今まで{passes}回目だね。"
+
+    rect_callout_shape.text = map_comment
+    for paragraph in rect_callout_shape.text_frame.paragraphs:
+        paragraph.font.size = Pt(24)
     rect_callout_shape.text_frame.margin_right = Cm(2.25)
 
     # ドラ見るちゃんを置く
+    if priority == 0:
+        doramiru_img = 'happy_doramiru.png'
+    elif priority == 1:
+        doramiru_img = 'worry_doramiru.png'
+    elif priority == 2:
+        doramiru_img = 'little_bad_doramiru.png'
+
     left = Cm(28.3)
     top = Cm(12.07)
     width = Cm(3.73)
     height = Cm(6.98)
-    prs.slides[-1].shapes.add_picture(f'{base_dir}/doramiru_img/worry_doramiru.png',left=left,top=top,width=width,height=height)
+    prs.slides[-1].shapes.add_picture(f'{base_dir}/doramiru_img/{doramiru_img}',left=left,top=top,width=width,height=height)
 
     # カラーバーを置く
     left = Cm(3.22)
@@ -408,13 +485,25 @@ def make_map_image(r,base_dir,prs,vmin,vmax):
     textbox.text_frame.text = f'{vmin}km/h'
     textbox.text_frame.paragraphs[0].alignment = PP_ALIGN.RIGHT 
     
-def make_sawakai_pdf(group_name,analysis_number,group_id):
+def make_sawakai_pdf(group_name,analysis_number,group_id,version = 1,user_list = ""):
     s3 = boto3.resource('s3')
     s3_bucket = "dcloud-unstructured-data"
     
     #sqlを読み込み
-    with open('./sql/risk_sql.txt','r',encoding='utf-8') as f:
+    ## コメント追加用するバージョンに変更
+    
+    if version == 1:
+        sql_file = "risk_sql.txt"
+    elif version == 2:
+        sql_file = "risk_sql_g4.txt"
+
+    with open(f'./sql/{sql_file}','r',encoding='utf-8') as f:
         risk_sql = f.read()
+
+    if user_list != "":
+        sql_user = f"and a.ai_user_id in {user_list}"
+        risk_sql = risk_sql.replace("//[USER_SQL]",sql_user)
+        print(risk_sql.replace('[GROUP_ID]',str(group_id)))
 
     risks_df = send_sql_to_snowflake(risk_sql.replace('[GROUP_ID]',str(group_id)))
     if not os.path.exists('./outputs'):
@@ -463,8 +552,11 @@ def make_sawakai_pdf(group_name,analysis_number,group_id):
         make_agegroup_graph(analysis_group=group_id,prs=prs)
         
         ##通過数の多い箇所を優先、コメントがあるデータを優先
-        latest_analysis_group_result = group_result_df[(group_result_df['解析回']==analysis_number) & (pd.notna(group_result_df['コメント']))]
-
+        ##
+        if version == 1:
+            latest_analysis_group_result = group_result_df[(group_result_df['解析回']==analysis_number) & (pd.notna(group_result_df['コメント']))]
+        elif version == 2:
+            latest_analysis_group_result = group_result_df[(group_result_df['解析回']==analysis_number) & (pd.notna(group_result_df['コメント'])) & (group_result_df['茶話会優先度'] < 3)]
         
         ##　リスク別に資料をつくる
         for risk_name in latest_analysis_group_result['リスク名'].unique():
@@ -503,6 +595,8 @@ def make_sawakai_pdf(group_name,analysis_number,group_id):
                     s3.Bucket(s3_bucket).download_file(Filename=f'{movie_folder}/{risk_id}.jpg', Key=thumbnail_s3path)
         
                 # リスク毎に新しいスライドを追加
+
+                # インデックスに茶話会優先度が存在するかどうかをチェック
                 add_risk_movie_free_comment(movie_path=f'{movie_folder}/resize/{risk_id}.mp4',thumbnail_path=f'{movie_folder}/{risk_id}.jpg',base_dir=base_dir,prs=prs,r=r)
                 # GoogleMapのリンクを追加
                 add_map_link(google_map_link=google_map_link,slide=prs.slides[-1])
@@ -517,6 +611,21 @@ def make_sawakai_pdf(group_name,analysis_number,group_id):
         new_slide.placeholders[11].text = f'自分の運転を振り返って、気づいたことを教えて欲しいな！\nあと、今日からやってみようと思うことも教えてほしいな！'
         if not os.path.exists(f'{base_dir}/outputs/documents'):
             os.mkdir(f'{base_dir}/outputs/documents')
-        prs.save(f'{base_dir}/outputs/documents/{group_name}_{group}_{analysis_number}回目.pptx')
+        
+        if user_list != "":
+            prs.save(f'{base_dir}/outputs/documents/{group_name}_{group}_{analysis_number}回目_{user_list}.pptx')
+        else:
+            prs.save(f'{base_dir}/outputs/documents/{group_name}_{group}_{analysis_number}回目.pptx')
+            
 
         
+def get_user_list(analysis_group,analysis_number):
+    sql = f"""
+    select distinct ai_user_id
+    from DCLOUD_RDS_DATA."tmf".latest_tickets
+    where analysis_group = {analysis_group} and analysis_number in {analysis_number}
+    order by ai_user_id;
+    """
+    print(sql)
+    df = send_sql_to_snowflake(sql)
+    return df['AI_USER_ID'].to_list()

@@ -13,6 +13,7 @@ import base64
 from chardet import detect
 from glob import glob
 
+
 st.set_page_config(
     layout="wide"  # wideに設定することで表示幅を広げる
 )
@@ -28,21 +29,49 @@ group_id = group_df[group_df['NAME']==group_name]['ID'].to_list()[0]
 st.sidebar.write('グループ名は', group_name, 'です。')
 st.sidebar.write('グループIDは', group_id, 'です。')
 
-analysis_numbers = st.sidebar.multiselect(
+## 対象の解析回を選択
+analysis_number = st.sidebar.multiselect(
     '解析回を選んでください',
-    [1,2,3,4,5],)
+    [1,2,3,4,5],[1])
 
 folder = './outputs/documents/*'
 files = glob(folder)
 datalist = []
 
-if st.sidebar.button('茶話会パワポの生成と更新'):
-    for analysis_number in analysis_numbers:
-        stool.make_sawakai_pdf(group_name,analysis_number,group_id)
+analysis_group_dict = {"豊田Gr1":1, "豊田Gr2":2, "豊田Gr3":3, "豊田Gr4":4,"佐賀Gr1":41,"佐賀Gr2":40}
+
+analysis_number_str = '(' + ', '.join(map(str, analysis_number)) + ')'
+st.sidebar.write("You selected:", analysis_number_str)
+
+select_users = st.sidebar.radio("ユーザ選択", ("なし","あり"), horizontal=True)
+if select_users == "あり":
+    user_list = stool.get_user_list(analysis_group=group_id,analysis_number=analysis_number_str)
+    ## 対象の解析回を選択
+    target_users = st.sidebar.multiselect(
+        "対象のユーザを選択してください",
+        user_list
+    )
+    target_users_str = '(' + ', '.join(map(str, target_users)) + ')'
+
+    st.sidebar.write("You selected:", target_users_str)
+
+if st.sidebar.button('V1 茶話会パワポの生成と更新'):
+    for analysis_number in analysis_number:
+        if select_users == "あり":
+            stool.make_sawakai_pdf(group_name,analysis_number,group_id,version=1,user_list=target_users_str)
+        else:
+            stool.make_sawakai_pdf(group_name,analysis_number,group_id,version=1,user_list="")
+    st.rerun()
+
+if st.sidebar.button('v2 茶話会パワポの生成と更新'):
+    for analysis_number in analysis_number:
+        if select_users == "あり":
+            stool.make_sawakai_pdf(group_name,analysis_number,group_id,version=2,user_list=target_users_str)
+        else:
+            stool.make_sawakai_pdf(group_name,analysis_number,group_id,version=2,user_list="")
+    st.rerun()
 
 for f in files:
-    #group_name = f.split('\\')[-1].split('_')[-3]
-    #filename = f"{f.split('_')[-2]}_{f.split('_')[-1]}"
     filename = f.split('\\')[-1]
     t = os.path.getmtime(f)
     d = datetime.datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')
